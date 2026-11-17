@@ -1,12 +1,12 @@
 {
   "name": "dsh-timefold",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Conversation rewind with shadow-git file snapshots and forked history — forks from dsh-recall-plugin 2.6.7, merges dsh-rewind interaction, fixes silent-failure paths on DSH 0.2.2",
   "icon": "assets/icon.svg",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/limbo947/dsh-recall-plugin.git"
+    "url": "git+https://github.com/sukai616/dsh-timefold.git"
   },
   "publishConfig": {
     "access": "public"
@@ -111,5 +111,10 @@
     "react-dom": "^18.3.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
-  }
+  },
+  "homepage": "https://github.com/sukai616/dsh-timefold",
+  "bugs": {
+    "url": "https://github.com/sukai616/dsh-timefold/issues"
+  },
+  "author": "sukai616"
 }
