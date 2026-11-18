@@ -37,7 +37,30 @@ DSH 自带的消息撤回只处理对话，不碰文件。市面上的两个方�
 
 这比「记录工具调用事件」强的地方在于：不管文件是被 `write`、`edit` 改的，还是被 `bash` 里的 `mv`/`cp`/`sed -i`、IDE 手动保存、甚至别的进程改的，只要在快照时刻之后变过，都能还原到字节级一致。
 
-默认排除 `.gitignore` 里的内容、以及基础排除表（`node_modules/`、`dist/`、`build/` 等），避免快照体积失控。
+默认排除 `.gitignore` 里的内容、以及基础排除表，避免快照体积失控。
+
+基础排除表内置了常见工具链的可重建产物（体积大、回退时无价值）：
+
+| 类别 | 内置条目（节选） |
+| --- | --- |
+| 通用构建输出 | `node_modules/`、`dist/`、`build/`、`out/`、`target/`、`coverage/` |
+| Xcode / iOS | `**/DerivedData/`、`**/Pods/`、`**/.build/`、`**/xcuserdata/`、`*.xcindex/`、`*.noindex/`、`**/SDKExplicitPrecompiledModules/`、`*.dSYM/` |
+| Python | `**/__pycache__/`、`**/.venv/`、`**/venv/`、`**/.pytest_cache/`、`**/.mypy_cache/`、`*.pyc`、`*.egg-info/` |
+| 前端 / Node | `**/.turbo/`、`**/.vite/`、`**/.next/`、`**/.nuxt/`、`**/.svelte-kit/`、`*.eslintcache` |
+| Dart / Flutter | `**/.dart_tool/` |
+| 系统垃圾 | `**/.DS_Store`、`**/Thumbs.db`、`*.log` |
+
+`.vscode/`、`.idea/` 刻意**不**排除：体积小，且常含手写启动配置。
+
+### 自定义排除
+
+同容器下的 `exclude.txt`（与各工作区哈希目录同级）优先级高于基础表，一行一条，gitignore 语法。可以：
+
+- **追加**：直接写新规则，立即生效，无需重启；
+- **反悔**：用 `!` 恢复基础表里的**文件级**规则，例如 `*.log` 是内置的，写 `!important.log` 就能把它收回来；
+- **注意**：gitignore 语义下**目录级排除无法恢复单个文件**——`**/Pods/` 之后再写 `!Pods/LocalPod/x.swift` 是无效的。要保留某个本地 Pod 的源码，只能把整条目录规则从基础表里拿掉（改插件配置的「基础排除表」），或改用更窄的路径规则。
+
+基础表本身也能在插件设置的「基础排除表」里整体改写。
 
 ## 修掉的缺陷
 
