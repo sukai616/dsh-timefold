@@ -39,18 +39,37 @@ DSH 自带的消息撤回只处理对话，不碰文件。市面上的两个方�
 
 默认排除 `.gitignore` 里的内容、以及基础排除表，避免快照体积失控。
 
-基础排除表内置了常见工具链的可重建产物（体积大、回退时无价值）：
+基础排除表内置了常见工具链的可重建产物（体积大、回退时无价值）。选条目时守三条：**可完全重建**、**不含手写配置**、**一律带 `**/` 前缀**（原因见下）。
 
 | 类别 | 内置条目（节选） |
 | --- | --- |
 | 通用构建输出 | `node_modules/`、`dist/`、`build/`、`out/`、`target/`、`coverage/` |
-| Xcode / iOS | `**/DerivedData/`、`**/Pods/`、`**/.build/`、`**/xcuserdata/`、`*.xcindex/`、`*.noindex/`、`**/SDKExplicitPrecompiledModules/`、`*.dSYM/` |
-| Python | `**/__pycache__/`、`**/.venv/`、`**/venv/`、`**/.pytest_cache/`、`**/.mypy_cache/`、`*.pyc`、`*.egg-info/` |
-| 前端 / Node | `**/.turbo/`、`**/.vite/`、`**/.next/`、`**/.nuxt/`、`**/.svelte-kit/`、`*.eslintcache` |
+| Xcode / iOS | `**/DerivedData/`、`**/Pods/`、`**/.build/`、`**/xcuserdata/`、`**/Carthage/Build/`、`**/.swiftpm/`、`*.xcindex/`、`*.noindex/`、`**/SDKExplicitPrecompiledModules/`、`*.dSYM/` |
+| Python | `**/__pycache__/`、`**/.venv/`、`**/venv/`、`**/.pytest_cache/`、`**/.mypy_cache/`、`**/.ruff_cache/`、`**/.tox/`、`**/.ipynb_checkpoints/`、`**/.hypothesis/`、`*.pyc`、`*.egg-info/` |
+| 前端 / Node | `**/.turbo/`、`**/.parcel-cache/`、`**/.vite/`、`**/.next/`、`**/.nuxt/`、`**/.svelte-kit/`、`**/.angular/`、`**/.yarn/cache/`、`*.tsbuildinfo`、`*.eslintcache` |
+| C / C++ / CMake | `**/CMakeFiles/`、`**/CMakeCache.txt`、`**/.ninja_deps`、`*.o`、`*.obj`、`*.lo`、`*.la`、`*.a` |
+| Java / Kotlin / Android | `**/.cxx/`、`**/.externalNativeBuild/`、`**/local.properties`、`*.class`、`*.apk`、`*.aab`、`*.hprof` |
+| .NET | `**/obj/`、`*.nupkg`（**不收 `bin/`**：很多项目拿 `bin` 放脚本） |
+| Ruby / PHP / Go / Elixir | `**/.bundle/`、`**/.yardoc/`、`**/vendor/`、`**/_build/`、`**/deps/`、`*.gem` |
 | Dart / Flutter | `**/.dart_tool/` |
-| 系统垃圾 | `**/.DS_Store`、`**/Thumbs.db`、`*.log` |
+| Haskell / Terraform | `**/dist-newstyle/`、`**/.stack-work/`、`**/.terraform/` |
+| IDE / 编辑器 | `**/.vscode/`、`**/.idea/`、`**/.fleet/`、`**/.vs/`、`**/.history/`、`*.suo`、`*.user`、`*.iml`、`*.swp`、`*.swo`、`*~` |
+| 覆盖率 | `**/htmlcov/`、`**/.nyc_output/`、`**/.coverage*` |
+| 系统垃圾 | `**/.DS_Store`、`**/Thumbs.db`、`**/desktop.ini`、`**/.Spotlight-V100/`、`**/.Trashes/`、`**/.fseventsd/`、`*.log` |
 
-`.vscode/`、`.idea/` 刻意**不**排除：体积小，且常含手写启动配置。
+### 为什么带 `**/` 前缀
+
+`**/x/` 与裸 `x/` 在 gitignore 里**语义完全等价**（都匹配任意层级）。加前缀是为了避开插件内部的一条判断：`buildArtifactRootSegment()` 会用基础表里的**裸目录名**判断「当前工作区是否落在构建产物目录里」，命中就整体停用该工作区的快照。
+
+如果 `Pods/` 裸着写，你哪天把项目 clone 到 `~/work/Pods/myapp`，快照会静默消失，界面上找不到任何原因。`**/Pods/` 因为含 `*` 会被 `dirNamePatterns()` 过滤掉，不参与这条判定——排除照样生效，路径判定不受污染。
+
+所以：**新增条目一律用 `**/` 前缀**。只有最早那 12 条刻意保留裸名形式（`build/`、`dist/`、`.cache/` 等），因为「在 build 目录里开工作区」本来就该停用快照，那是特性不是误伤。
+
+### `.vscode/`、`.idea/` 的取舍
+
+0.1.4 起按通用模板收进来了，但它们确实常含手写内容（`launch.json`、`settings.json`、`runConfigurations`）。这两个目录通常只有几 MB，排掉省不下多少空间，却会让「改了调试配置想回退」失效。
+
+如果你依赖这项能力，到插件设置的「基础排除表」里删掉 `**/.vscode/`、`**/.idea/` 两条即可——**不能用 `exclude.txt` 的 `!` 救**，原因见下。
 
 ### 自定义排除
 
@@ -58,7 +77,7 @@ DSH 自带的消息撤回只处理对话，不碰文件。市面上的两个方�
 
 - **追加**：直接写新规则，立即生效，无需重启；
 - **反悔**：用 `!` 恢复基础表里的**文件级**规则，例如 `*.log` 是内置的，写 `!important.log` 就能把它收回来；
-- **注意**：gitignore 语义下**目录级排除无法恢复单个文件**——`**/Pods/` 之后再写 `!Pods/LocalPod/x.swift` 是无效的。要保留某个本地 Pod 的源码，只能把整条目录规则从基础表里拿掉（改插件配置的「基础排除表」），或改用更窄的路径规则。
+- **限制**：gitignore 语义下**目录级排除无法恢复单个文件**——`**/Pods/` 之后再写 `!Pods/LocalPod/x.swift` 是无效的。要保留某个本地 Pod 的源码，只能把整条目录规则从基础表里拿掉（改插件配置的「基础排除表」），或改用更窄的路径规则。
 
 基础表本身也能在插件设置的「基础排除表」里整体改写。
 
